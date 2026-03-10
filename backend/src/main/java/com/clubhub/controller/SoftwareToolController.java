@@ -33,4 +33,10 @@ public class SoftwareToolController {
     public ApiResponse<SoftwareToolResponse> create(@Valid @RequestBody CreateSoftwareToolRequest request) {
         return ApiResponse.ok("新增成功", softwareToolService.createTool(request));
     }
+
+    @PostMapping("/applications")
+    @SaCheckPermission("software:read")
+    public ApiResponse<SoftwareToolResponse> submitApplication(@Valid @RequestBody CreateSoftwareToolRequest request) {
+        return ApiResponse.ok("申请已提交，等待审核", softwareToolService.submitApplication(request));
+    }
 }

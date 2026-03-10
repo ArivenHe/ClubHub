@@ -1,5 +1,6 @@
 package com.clubhub.dto;
 
+import com.clubhub.enums.SoftwareToolStatus;
 import lombok.Builder;
 import lombok.Data;
 
@@ -15,5 +16,9 @@ public class SoftwareToolResponse {
     private String downloadUrl;
     private String description;
     private String recommendedBy;
+    private Long applicantId;
+    private SoftwareToolStatus status;
+    private String reviewRemark;
+    private LocalDateTime reviewedAt;
     private LocalDateTime createdAt;
 }

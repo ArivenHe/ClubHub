@@ -1,0 +1,12 @@
+CREATE TABLE IF NOT EXISTS biz_notification (
+  id BIGINT NOT NULL AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  notice_type VARCHAR(40) NOT NULL,
+  title VARCHAR(120) NOT NULL,
+  content VARCHAR(500) NOT NULL,
+  related_id BIGINT NULL,
+  is_read TINYINT(1) NOT NULL DEFAULT 0,
+  read_at DATETIME(6) NULL,
+  created_at DATETIME(6) NOT NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

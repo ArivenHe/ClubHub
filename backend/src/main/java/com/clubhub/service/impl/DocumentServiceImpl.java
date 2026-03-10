@@ -15,6 +15,7 @@ import com.clubhub.repository.DocumentRepository;
 import com.clubhub.repository.TagRepository;
 import com.clubhub.repository.UserRepository;
 import com.clubhub.service.DocumentService;
+import com.clubhub.service.NotificationService;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -46,6 +47,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentLikeRepository documentLikeRepository;
     private final TagRepository tagRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Value("${app.upload-dir:uploads}")
     private String uploadDir;
@@ -247,6 +249,15 @@ public class DocumentServiceImpl implements DocumentService {
             .orElseThrow(() -> new BizException("文章不存在"));
         document.setRecommended(recommended);
         Document saved = documentRepository.save(document);
+        if (saved.getAuthorId() != null) {
+            notificationService.createSystemNotice(
+                saved.getAuthorId(),
+                recommended ? "ARTICLE_RECOMMENDED_ON" : "ARTICLE_RECOMMENDED_OFF",
+                recommended ? "文章已设为推荐" : "文章已取消推荐",
+                "你的文章《" + saved.getTitle() + "》" + (recommended ? "已被管理员设为推荐。" : "已被管理员取消推荐。"),
+                saved.getId()
+            );
+        }
         Long userId = StpUtil.getLoginIdAsLong();
         long likeCount = documentLikeRepository.countByDocumentId(saved.getId());
         boolean liked = documentLikeRepository.existsByDocumentIdAndUserId(saved.getId(), userId);
@@ -258,6 +269,15 @@ public class DocumentServiceImpl implements DocumentService {
     public void adminDeleteDocument(Long documentId) {
         Document document = documentRepository.findById(documentId)
             .orElseThrow(() -> new BizException("文章不存在"));
+        if (document.getAuthorId() != null) {
+            notificationService.createSystemNotice(
+                document.getAuthorId(),
+                "ARTICLE_DELETED",
+                "文章已被后台删除",
+                "你的文章《" + document.getTitle() + "》已被管理员删除。",
+                null
+            );
+        }
         removeAttachmentIfNeeded(document.getAttachmentPath());
         documentCommentRepository.deleteByDocumentId(documentId);
         documentLikeRepository.deleteByDocumentId(documentId);

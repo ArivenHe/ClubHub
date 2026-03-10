@@ -24,6 +24,34 @@
 
     <section class="card">
       <div class="section-header">
+        <h3>提醒中心</h3>
+        <div class="actions-cell">
+          <span class="muted">未读 {{ unreadNoticeCount }} 条</span>
+          <button type="button" class="small-btn secondary-btn-inline" @click="loadNotifications">刷新</button>
+          <button type="button" class="small-btn" :disabled="unreadNoticeCount === 0" @click="markAllRead">
+            全部已读
+          </button>
+        </div>
+      </div>
+      <div v-if="noticeLoading" class="empty">提醒加载中...</div>
+      <div v-else-if="notifications.length === 0" class="empty">暂无提醒</div>
+      <article v-for="notice in notifications" :key="notice.id" class="doc-item">
+        <h4>
+          {{ notice.title }}
+          <span v-if="!notice.read" class="badge">未读</span>
+        </h4>
+        <p>{{ notice.content }}</p>
+        <div class="doc-meta">
+          <span>{{ formatDate(notice.createdAt) }}</span>
+          <button v-if="!notice.read" type="button" class="small-btn" @click="markRead(notice)">标记已读</button>
+          <button type="button" class="small-btn secondary-btn-inline" @click="openNotice(notice)">查看相关内容</button>
+        </div>
+      </article>
+      <p v-if="noticeErrorMessage" class="error">{{ noticeErrorMessage }}</p>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
         <h3>首页推荐文章</h3>
         <router-link to="/app/articles">查看全站文档列表</router-link>
       </div>
@@ -49,22 +77,84 @@
 
 <script>
 import { likeDocumentApi, recommendedDocumentsApi, unlikeDocumentApi } from '../api/document'
+import { listNotificationsApi, markAllNotificationsReadApi, markNotificationReadApi } from '../api/notification'
 
 export default {
   name: 'DashboardView',
   data() {
     return {
       recommended: [],
-      errorMessage: ''
+      errorMessage: '',
+      notifications: [],
+      noticeLoading: false,
+      noticeErrorMessage: ''
+    }
+  },
+  computed: {
+    unreadNoticeCount() {
+      return this.notifications.filter((item) => !item.read).length
     }
   },
   mounted() {
     this.loadRecommended()
+    this.loadNotifications()
   },
   methods: {
     formatDate(value) {
       if (!value) return '-'
       return new Date(value).toLocaleString('zh-CN')
+    },
+    async loadNotifications() {
+      this.noticeLoading = true
+      this.noticeErrorMessage = ''
+      try {
+        const res = await listNotificationsApi(20)
+        this.notifications = res.data || []
+      } catch (e) {
+        this.noticeErrorMessage = e.message || '加载提醒失败'
+      } finally {
+        this.noticeLoading = false
+      }
+    },
+    async markRead(notice) {
+      if (!notice || notice.read) {
+        return
+      }
+      this.noticeErrorMessage = ''
+      try {
+        await markNotificationReadApi(notice.id)
+        notice.read = true
+      } catch (e) {
+        this.noticeErrorMessage = e.message || '标记已读失败'
+      }
+    },
+    async markAllRead() {
+      this.noticeErrorMessage = ''
+      try {
+        await markAllNotificationsReadApi()
+        this.notifications = this.notifications.map((item) => ({ ...item, read: true }))
+      } catch (e) {
+        this.noticeErrorMessage = e.message || '全部已读失败'
+      }
+    },
+    async openNotice(notice) {
+      await this.markRead(notice)
+      const type = notice.type || ''
+      if (type === 'ARTICLE_RECOMMENDED_ON' || type === 'ARTICLE_RECOMMENDED_OFF') {
+        if (notice.relatedId) {
+          this.$router.push(`/app/articles/${notice.relatedId}`)
+          return
+        }
+      }
+      if (type === 'ARTICLE_DELETED') {
+        this.$router.push('/app/articles')
+        return
+      }
+      if (type === 'SOFTWARE_REJECTED' || type === 'SOFTWARE_APPROVED' || type === 'SOFTWARE_DELETED') {
+        this.$router.push('/app/software')
+        return
+      }
+      this.$router.push('/app/dashboard')
     },
     async loadRecommended() {
       try {
